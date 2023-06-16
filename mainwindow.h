@@ -34,10 +34,12 @@ private slots:
     void dealWithMessage(const QByteArray &message, const QMqttTopicName &topic);
     void setPlotYRange();
 
+    void on_pushButton_clicked();
+
 private:
     Ui::MainWindow *ui;
     QMqttClient *m_client;
-    QElapsedTimer timer;
+    QElapsedTimer timeCounter;
 
 };
 #endif // MAINWINDOW_H

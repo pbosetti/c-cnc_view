@@ -7,6 +7,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
+#include <QTimer>
 #include <algorithm>
 
 
@@ -15,6 +16,7 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+
     QObject::connect(ui->sliderX, SIGNAL(valueChanged(int)), ui->lcdX, SLOT(display(int)));
     QObject::connect(ui->sliderY, SIGNAL(valueChanged(int)), ui->lcdY, SLOT(display(int)));
     QObject::connect(ui->sliderZ, SIGNAL(valueChanged(int)), ui->lcdZ, SLOT(display(int)));
@@ -57,12 +59,22 @@ MainWindow::MainWindow(QWidget *parent)
     ui->plot->xAxis->setTicker(timeTicker);
     ui->plot->axisRect()->setupFullAxesBox();
     ui->plot->yAxis->setRange(0, 1000);
+    ui->plot->setInteraction(QCP::iRangeDrag, true);
+    ui->plot->axisRect()->setRangeDrag(Qt::Horizontal);
 
     connect(ui->maxX, SIGNAL(valueChanged(int)), this, SLOT(setPlotYRange()));
     connect(ui->maxY, SIGNAL(valueChanged(int)), this, SLOT(setPlotYRange()));
     connect(ui->maxZ, SIGNAL(valueChanged(int)), this, SLOT(setPlotYRange()));
+    connect(ui->coordMinBox, SIGNAL(valueChanged(int)), this, SLOT(setPlotYRange()));
+    connect(ui->coordMaxBox, SIGNAL(valueChanged(int)), this, SLOT(setPlotYRange()));
 
-    timer.start();
+    timeCounter.start();
+
+    QTimer *timer = new QTimer(this);
+    connect(timer, &QTimer::timeout, this, [this]() {
+        ui->plot->replot();
+    });
+    timer->start(33);
 }
 
 MainWindow::~MainWindow()
@@ -89,12 +101,12 @@ void MainWindow::dealWithMessage(const QByteArray &message, const QMqttTopicName
         ui->sliderX->setValue(x.toDouble());
         ui->sliderY->setValue(y.toDouble());
         ui->sliderZ->setValue(z.toDouble());
-        double t = timer.elapsed() / 1000.0;
+        double t = timeCounter.elapsed() / 1000.0;
         ui->plot->graph(0)->addData(t, x.toDouble());
         ui->plot->graph(1)->addData(t, y.toDouble());
         ui->plot->graph(2)->addData(t, z.toDouble());
         ui->plot->xAxis->setRange(t, ui->timeSpanBox->value(), Qt::AlignRight);
-        ui->plot->replot();
+
     } else {
         const QString content = QDateTime::currentDateTime().toString()
                                 + QLatin1String(" Received Topic: ")
@@ -111,8 +123,10 @@ void MainWindow::dealWithMessage(const QByteArray &message, const QMqttTopicName
 void MainWindow::setPlotYRange() {
     std::vector<int> v {ui->maxX->value(), ui->maxY->value(), ui->maxZ->value()};
     int max = *std::max_element(v.begin(), v.end());
-    ui->plot->yAxis->setRange(0, max);
-    ui->plot->replot();
+    ui->coordMinBox->setMaximum(max);
+    ui->coordMaxBox->setMaximum(max);
+    max = max < ui->coordMaxBox->value() ? max : ui->coordMaxBox->value();
+    ui->plot->yAxis->setRange(ui->coordMinBox->value(), max);
 }
 
 void MainWindow::setSliderXMax(int max) {
@@ -170,4 +184,12 @@ void MainWindow::on_subscribeButton_clicked()
     }
 }
 
+
+
+void MainWindow::on_pushButton_clicked()
+{
+    ui->plot->graph(0)->data()->clear();
+    ui->plot->graph(1)->data()->clear();
+    ui->plot->graph(2)->data()->clear();
+}
 
