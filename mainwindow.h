@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QMqttClient>
+#include <QElapsedTimer>
 
 
 
@@ -31,10 +32,12 @@ private slots:
     void brokerDisconnected();
     void on_subscribeButton_clicked();
     void dealWithMessage(const QByteArray &message, const QMqttTopicName &topic);
+    void setPlotYRange();
 
 private:
     Ui::MainWindow *ui;
     QMqttClient *m_client;
+    QElapsedTimer timer;
 
 };
 #endif // MAINWINDOW_H

@@ -7,6 +7,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
+#include <algorithm>
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -39,6 +40,29 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->brokerAddressField, &QLineEdit::textChanged, m_client, &QMqttClient::setHostname);
     connect(ui->brokerPortField, QOverload<int>::of(&QSpinBox::valueChanged), this, &MainWindow::setClientPort);
 
+    // X
+    ui->plot->addGraph();
+    ui->plot->graph(0)->setPen(QPen(QColor(255, 0, 0)));
+
+    // Y
+    ui->plot->addGraph();
+    ui->plot->graph(1)->setPen(QPen(QColor(0, 255, 0)));
+
+    // Z
+    ui->plot->addGraph();
+    ui->plot->graph(2)->setPen(QPen(QColor(0, 0, 255)));
+
+    QSharedPointer<QCPAxisTickerTime> timeTicker(new QCPAxisTickerTime);
+    timeTicker->setTimeFormat("%h:%m:%s");
+    ui->plot->xAxis->setTicker(timeTicker);
+    ui->plot->axisRect()->setupFullAxesBox();
+    ui->plot->yAxis->setRange(0, 1000);
+
+    connect(ui->maxX, SIGNAL(valueChanged(int)), this, SLOT(setPlotYRange()));
+    connect(ui->maxY, SIGNAL(valueChanged(int)), this, SLOT(setPlotYRange()));
+    connect(ui->maxZ, SIGNAL(valueChanged(int)), this, SLOT(setPlotYRange()));
+
+    timer.start();
 }
 
 MainWindow::~MainWindow()
@@ -65,6 +89,12 @@ void MainWindow::dealWithMessage(const QByteArray &message, const QMqttTopicName
         ui->sliderX->setValue(x.toDouble());
         ui->sliderY->setValue(y.toDouble());
         ui->sliderZ->setValue(z.toDouble());
+        double t = timer.elapsed() / 1000.0;
+        ui->plot->graph(0)->addData(t, x.toDouble());
+        ui->plot->graph(1)->addData(t, y.toDouble());
+        ui->plot->graph(2)->addData(t, z.toDouble());
+        ui->plot->xAxis->setRange(t, ui->timeSpanBox->value(), Qt::AlignRight);
+        ui->plot->replot();
     } else {
         const QString content = QDateTime::currentDateTime().toString()
                                 + QLatin1String(" Received Topic: ")
@@ -75,6 +105,14 @@ void MainWindow::dealWithMessage(const QByteArray &message, const QMqttTopicName
         ui->logTextArea->insertPlainText(content);
     }
     ui->logTextArea->ensureCursorVisible();
+}
+
+
+void MainWindow::setPlotYRange() {
+    std::vector<int> v {ui->maxX->value(), ui->maxY->value(), ui->maxZ->value()};
+    int max = *std::max_element(v.begin(), v.end());
+    ui->plot->yAxis->setRange(0, max);
+    ui->plot->replot();
 }
 
 void MainWindow::setSliderXMax(int max) {
