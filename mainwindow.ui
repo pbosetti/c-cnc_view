@@ -117,19 +117,9 @@
      </layout>
     </item>
     <item>
-     <layout class="QVBoxLayout" name="verticalLayout">
+     <layout class="QHBoxLayout" name="horizontalLayout_2">
       <item>
-       <widget class="QPlainTextEdit" name="logTextArea">
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>250</height>
-         </size>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QCustomPlot" name="plot" native="true">
+       <widget class="QCustomPlot" name="tracePlot" native="true">
         <property name="minimumSize">
          <size>
           <width>0</width>
@@ -138,47 +128,23 @@
         </property>
        </widget>
       </item>
+      <item>
+       <widget class="QCustomPlot" name="xyPlot" native="true"/>
+      </item>
      </layout>
     </item>
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout">
       <item>
        <layout class="QFormLayout" name="formLayout_2">
-        <item row="1" column="0">
-         <widget class="QLabel" name="label_7">
-          <property name="text">
-           <string>Time span (s)</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="1">
-         <widget class="QSpinBox" name="timeSpanBox">
-          <property name="minimum">
-           <number>5</number>
-          </property>
-          <property name="maximum">
-           <number>1000</number>
-          </property>
-          <property name="value">
-           <number>10</number>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="0">
-         <widget class="QLabel" name="label_8">
-          <property name="text">
-           <string>Coord max (mm)</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="0">
+        <item row="0" column="0">
          <widget class="QLabel" name="label_9">
           <property name="text">
            <string>Coord min (mm)</string>
           </property>
          </widget>
         </item>
-        <item row="2" column="1">
+        <item row="0" column="1">
          <widget class="QSpinBox" name="coordMinBox">
           <property name="maximum">
            <number>1000</number>
@@ -188,7 +154,14 @@
           </property>
          </widget>
         </item>
-        <item row="3" column="1">
+        <item row="1" column="0">
+         <widget class="QLabel" name="label_8">
+          <property name="text">
+           <string>Coord max (mm)</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
          <widget class="QSpinBox" name="coordMaxBox">
           <property name="maximum">
            <number>1000</number>
@@ -206,9 +179,9 @@
       <item>
        <layout class="QVBoxLayout" name="verticalLayout_3">
         <item>
-         <widget class="QPushButton" name="pushButton">
+         <widget class="QPushButton" name="clearDataButton">
           <property name="text">
-           <string>Clean data</string>
+           <string>Clear data</string>
           </property>
          </widget>
         </item>
@@ -218,10 +191,13 @@
     </item>
     <item>
      <layout class="QGridLayout" name="gridLayout">
-      <item row="1" column="0">
-       <widget class="QLabel" name="label_5">
-        <property name="text">
-         <string>Y axis position</string>
+      <item row="2" column="3">
+       <widget class="QSpinBox" name="maxZ">
+        <property name="maximum">
+         <number>10000</number>
+        </property>
+        <property name="value">
+         <number>1000</number>
         </property>
        </widget>
       </item>
@@ -235,10 +211,51 @@
         </property>
        </widget>
       </item>
+      <item row="2" column="1">
+       <widget class="QLCDNumber" name="lcdZ">
+        <property name="segmentStyle">
+         <enum>QLCDNumber::Flat</enum>
+        </property>
+       </widget>
+      </item>
       <item row="0" column="0">
        <widget class="QLabel" name="label_3">
         <property name="text">
          <string>X axis position</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_5">
+        <property name="text">
+         <string>Y axis position</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="3">
+       <widget class="QSpinBox" name="maxY">
+        <property name="maximum">
+         <number>10000</number>
+        </property>
+        <property name="value">
+         <number>1000</number>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_6">
+        <property name="text">
+         <string>Z axis position</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QProgressBar" name="sliderX">
+        <property name="maximum">
+         <number>1000</number>
+        </property>
+        <property name="value">
+         <number>0</number>
         </property>
        </widget>
       </item>
@@ -262,67 +279,26 @@
         </property>
        </widget>
       </item>
-      <item row="2" column="2">
-       <widget class="QSlider" name="sliderZ">
-        <property name="maximum">
-         <number>1000</number>
-        </property>
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="2">
-       <widget class="QSlider" name="sliderX">
-        <property name="maximum">
-         <number>1000</number>
-        </property>
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-       </widget>
-      </item>
       <item row="1" column="2">
-       <widget class="QSlider" name="sliderY">
+       <widget class="QProgressBar" name="sliderY">
         <property name="maximum">
          <number>1000</number>
-        </property>
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="label_6">
-        <property name="text">
-         <string>Z axis position</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QLCDNumber" name="lcdZ">
-        <property name="segmentStyle">
-         <enum>QLCDNumber::Flat</enum>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="3">
-       <widget class="QSpinBox" name="maxY">
-        <property name="maximum">
-         <number>10000</number>
         </property>
         <property name="value">
-         <number>1000</number>
+         <number>0</number>
+        </property>
+        <property name="invertedAppearance">
+         <bool>false</bool>
         </property>
        </widget>
       </item>
-      <item row="2" column="3">
-       <widget class="QSpinBox" name="maxZ">
+      <item row="2" column="2">
+       <widget class="QProgressBar" name="sliderZ">
         <property name="maximum">
-         <number>10000</number>
+         <number>1000</number>
         </property>
         <property name="value">
-         <number>1000</number>
+         <number>0</number>
         </property>
        </widget>
       </item>
@@ -336,7 +312,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>43</height>
+     <height>24</height>
     </rect>
    </property>
   </widget>

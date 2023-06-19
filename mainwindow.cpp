@@ -16,7 +16,9 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    ui->subscribeButton->setEnabled(false);
 
+    // Setup sliders
     QObject::connect(ui->sliderX, SIGNAL(valueChanged(int)), ui->lcdX, SLOT(display(int)));
     QObject::connect(ui->sliderY, SIGNAL(valueChanged(int)), ui->lcdY, SLOT(display(int)));
     QObject::connect(ui->sliderZ, SIGNAL(valueChanged(int)), ui->lcdZ, SLOT(display(int)));
@@ -24,43 +26,48 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(ui->maxY, SIGNAL(valueChanged(int)), this, SLOT(setSliderYMax(int)));
     QObject::connect(ui->maxZ, SIGNAL(valueChanged(int)), this, SLOT(setSliderZMax(int)));
     statusBar()->showMessage(tr("Welcome! set broker data and press Connect, then topic and press Subscribe"), 10000);
+
+    // Setup MQTT
     m_client = new QMqttClient(this);
     m_client->setHostname(ui->brokerAddressField->text());
     m_client->setPort(static_cast<quint16>(ui->brokerPortField->value()));
     connect(m_client, SIGNAL(disconnected()), this, SLOT(brokerDisconnected()));
-
-//    connect(m_client, &QMqttClient::messageReceived, this, [this](const QByteArray &message, const QMqttTopicName &topic) {
-//        const QString content = QDateTime::currentDateTime().toString()
-//                                + QLatin1String(" Received Topic: ")
-//                                + topic.name()
-//                                + QLatin1String(" Message: ")
-//                                + message
-//                                + QLatin1Char('\n');
-//        ui->logTextArea->insertPlainText(content);
-//    });
     connect(m_client, &QMqttClient::messageReceived, this, &MainWindow::dealWithMessage);
     connect(ui->brokerAddressField, &QLineEdit::textChanged, m_client, &QMqttClient::setHostname);
     connect(ui->brokerPortField, QOverload<int>::of(&QSpinBox::valueChanged), this, &MainWindow::setClientPort);
 
+    // Setup tracePlot
+    QPen pen;
+    pen.setColor(QColor(200, 0, 0));
+    pen.setStyle(Qt::CustomDashLine);
+    QList<qreal> dashes;
+    dashes << 20 << 2;
+    pen.setDashPattern(dashes);
     // X
-    ui->plot->addGraph();
-    ui->plot->graph(0)->setPen(QPen(QColor(255, 0, 0)));
+    ui->tracePlot->addGraph();
+    ui->tracePlot->graph(0)->setPen(pen);
 
     // Y
-    ui->plot->addGraph();
-    ui->plot->graph(1)->setPen(QPen(QColor(0, 255, 0)));
+    pen.setColor(QColor(0, 200, 0));
+    ui->tracePlot->addGraph();
+    ui->tracePlot->graph(1)->setPen(pen);
 
     // Z
-    ui->plot->addGraph();
-    ui->plot->graph(2)->setPen(QPen(QColor(0, 0, 255)));
+    pen.setColor(QColor(0, 0, 200));
+    ui->tracePlot->addGraph();
+    ui->tracePlot->graph(2)->setPen(pen);
 
     QSharedPointer<QCPAxisTickerTime> timeTicker(new QCPAxisTickerTime);
     timeTicker->setTimeFormat("%h:%m:%s");
-    ui->plot->xAxis->setTicker(timeTicker);
-    ui->plot->axisRect()->setupFullAxesBox();
-    ui->plot->yAxis->setRange(0, 1000);
-    ui->plot->setInteraction(QCP::iRangeDrag, true);
-    ui->plot->axisRect()->setRangeDrag(Qt::Horizontal);
+    ui->tracePlot->xAxis->setTicker(timeTicker);
+    ui->tracePlot->axisRect()->setupFullAxesBox();
+    ui->tracePlot->yAxis->setRange(0, 1000);
+    ui->tracePlot->setInteraction(QCP::iRangeDrag, true);
+    ui->tracePlot->axisRect()->setRangeDrag(Qt::Horizontal);
+    ui->tracePlot->setInteraction(QCP::iRangeZoom, true);
+    ui->tracePlot->axisRect()->setRangeZoom(Qt::Horizontal);
+    ui->tracePlot->xAxis->setLabel(tr("Elapsed time"));
+    ui->tracePlot->yAxis->setLabel(tr("Axis Position (mm)"));
 
     connect(ui->maxX, SIGNAL(valueChanged(int)), this, SLOT(setPlotYRange()));
     connect(ui->maxY, SIGNAL(valueChanged(int)), this, SLOT(setPlotYRange()));
@@ -68,19 +75,36 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->coordMinBox, SIGNAL(valueChanged(int)), this, SLOT(setPlotYRange()));
     connect(ui->coordMaxBox, SIGNAL(valueChanged(int)), this, SLOT(setPlotYRange()));
 
-    timeCounter.start();
+    // Setup XY plot
+    xyCurveRapid = new QCPCurve(ui->xyPlot->xAxis, ui->xyPlot->yAxis);
+    xyCurveInterp = new QCPCurve(ui->xyPlot->xAxis, ui->xyPlot->yAxis);
+    xyCurveRapid->setPen(QPen(QColor(200, 0, 0)));
+    xyCurveInterp->setPen(QPen(QColor(0, 0, 200)));
+    ui->xyPlot->axisRect()->setupFullAxesBox();
+    ui->xyPlot->xAxis->setRange(0, ui->maxX->value());
+    ui->xyPlot->yAxis->setRange(0, ui->maxY->value());
+    ui->xyPlot->setInteraction(QCP::iRangeDrag, true);
+    ui->xyPlot->axisRect()->setRangeDrag(Qt::Horizontal | Qt::Vertical);
+    ui->xyPlot->setInteraction(QCP::iRangeZoom, true);
+    ui->xyPlot->xAxis->setLabel(tr("X (mm)"));
+    ui->xyPlot->yAxis->setLabel(tr("Y (mm)"));
 
+    // Setup timers
+    // Running timer
+    timeCounter.start();
+    // Timer for updating tracePlot
     QTimer *timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, [this]() {
-        ui->plot->replot();
+        ui->tracePlot->replot();
+        ui->xyPlot->replot();
     });
     timer->start(33);
 }
 
 MainWindow::~MainWindow()
 {
-    delete m_client;
     delete ui;
+    delete m_client;
 }
 
 void MainWindow::dealWithMessage(const QByteArray &message, const QMqttTopicName &topic) {
@@ -94,29 +118,22 @@ void MainWindow::dealWithMessage(const QByteArray &message, const QMqttTopicName
     if (match.hasMatch()) {
         QJsonDocument doc = QJsonDocument::fromJson(message);
         QJsonObject obj = doc.object();
-        QJsonValue x = obj["x"];
-        QJsonValue y = obj["y"];
-        QJsonValue z = obj["z"];
-        QJsonValue rapid = obj["rapid"];
-        ui->sliderX->setValue(x.toDouble());
-        ui->sliderY->setValue(y.toDouble());
-        ui->sliderZ->setValue(z.toDouble());
+        double x = obj["x"].toDouble();
+        double y = obj["y"].toDouble();
+        double z = obj["z"].toDouble();
+        int rapid = obj["rapid"].toInt();
+        ui->sliderX->setValue(x);
+        ui->sliderY->setValue(y);
+        ui->sliderZ->setValue(z);
         double t = timeCounter.elapsed() / 1000.0;
-        ui->plot->graph(0)->addData(t, x.toDouble());
-        ui->plot->graph(1)->addData(t, y.toDouble());
-        ui->plot->graph(2)->addData(t, z.toDouble());
-        ui->plot->xAxis->setRange(t, ui->timeSpanBox->value(), Qt::AlignRight);
-
+        ui->tracePlot->graph(0)->addData(t, x);
+        ui->tracePlot->graph(1)->addData(t, y);
+        ui->tracePlot->graph(2)->addData(t, z);
+        ui->tracePlot->xAxis->setRange(t, 60, Qt::AlignRight);
+        (rapid ? xyCurveRapid : xyCurveInterp)->addData(x, y);
     } else {
-        const QString content = QDateTime::currentDateTime().toString()
-                                + QLatin1String(" Received Topic: ")
-                                + topic.name()
-                                + QLatin1String(" Message: ")
-                                + message
-                                + QLatin1Char('\n');
-        ui->logTextArea->insertPlainText(content);
+        qDebug() << "Got message: " << message;
     }
-    ui->logTextArea->ensureCursorVisible();
 }
 
 
@@ -126,15 +143,17 @@ void MainWindow::setPlotYRange() {
     ui->coordMinBox->setMaximum(max);
     ui->coordMaxBox->setMaximum(max);
     max = max < ui->coordMaxBox->value() ? max : ui->coordMaxBox->value();
-    ui->plot->yAxis->setRange(ui->coordMinBox->value(), max);
+    ui->tracePlot->yAxis->setRange(ui->coordMinBox->value(), max);
 }
 
 void MainWindow::setSliderXMax(int max) {
     ui->sliderX->setMaximum(max);
+    ui->xyPlot->xAxis->setRange(0, ui->maxX->value());
 }
 
 void MainWindow::setSliderYMax(int max) {
     ui->sliderY->setMaximum(max);
+    ui->xyPlot->yAxis->setRange(0, ui->maxY->value());
 }
 
 void MainWindow::setSliderZMax(int max) {
@@ -144,19 +163,17 @@ void MainWindow::setSliderZMax(int max) {
 
 void MainWindow::on_connectButton_clicked()
 {
-    if (m_client->state() == QMqttClient::Disconnected) {
-        ui->brokerAddressField->setEnabled(false);
-        ui->brokerPortField->setEnabled(false);
-        ui->connectButton->setText(tr("Disconnect"));
+    bool disconnected = m_client->state() == QMqttClient::Disconnected;
+    if (disconnected) {
         m_client->connectToHost();
-        statusBar()->showMessage(tr("Connected"), 2000);
     } else {
-        ui->brokerAddressField->setEnabled(true);
-        ui->brokerPortField->setEnabled(true);
-        ui->connectButton->setText(tr("Connect"));
         m_client->disconnectFromHost();
-        statusBar()->showMessage(tr("Disconnected"), 2000);
     }
+    ui->brokerAddressField->setEnabled(disconnected);
+    ui->brokerPortField->setEnabled(disconnected);
+    ui->subscribeButton->setEnabled(disconnected);
+    ui->connectButton->setText(disconnected ? tr("Disconnect") : tr("Connect"));
+    statusBar()->showMessage(disconnected ? tr("Connected") : tr("Disconnected"), 2000);
 }
 
 
@@ -165,6 +182,7 @@ void MainWindow::brokerDisconnected()
     ui->brokerAddressField->setEnabled(true);
     ui->brokerPortField->setEnabled(true);
     ui->connectButton->setText(tr("Connect"));
+    statusBar()->showMessage(tr("Unexpected disconnection"), 20000);
 }
 
 void MainWindow::setClientPort(int p)
@@ -186,10 +204,12 @@ void MainWindow::on_subscribeButton_clicked()
 
 
 
-void MainWindow::on_pushButton_clicked()
+void MainWindow::on_clearDataButton_clicked()
 {
-    ui->plot->graph(0)->data()->clear();
-    ui->plot->graph(1)->data()->clear();
-    ui->plot->graph(2)->data()->clear();
+    ui->tracePlot->graph(0)->data()->clear();
+    ui->tracePlot->graph(1)->data()->clear();
+    ui->tracePlot->graph(2)->data()->clear();
+    xyCurveInterp->data().clear();
+    xyCurveRapid->data().clear();
 }
 

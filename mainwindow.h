@@ -1,6 +1,7 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include "qcustomplot.h"
 #include <QMainWindow>
 #include <QMqttClient>
 #include <QElapsedTimer>
@@ -33,12 +34,13 @@ private slots:
     void on_subscribeButton_clicked();
     void dealWithMessage(const QByteArray &message, const QMqttTopicName &topic);
     void setPlotYRange();
-
-    void on_pushButton_clicked();
+    void on_clearDataButton_clicked();
 
 private:
     Ui::MainWindow *ui;
     QMqttClient *m_client;
+    QCPCurve *xyCurveRapid;
+    QCPCurve *xyCurveInterp;
     QElapsedTimer timeCounter;
 
 };
