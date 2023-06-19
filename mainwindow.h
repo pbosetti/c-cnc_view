@@ -41,6 +41,7 @@ private:
     QMqttClient *m_client;
     QCPCurve *xyCurveRapid;
     QCPCurve *xyCurveInterp;
+    QCPCurve *xyCurvePosition;
     QElapsedTimer timeCounter;
 
 };

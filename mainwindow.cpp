@@ -17,6 +17,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     ui->subscribeButton->setEnabled(false);
+    this->window()->setWindowTitle("C-CNC realtime data viewer");
 
     // Setup sliders
     QObject::connect(ui->sliderX, SIGNAL(valueChanged(int)), ui->lcdX, SLOT(display(int)));
@@ -96,6 +97,8 @@ MainWindow::MainWindow(QWidget *parent)
     xyCurveInterp = new QCPCurve(ui->xyPlot->xAxis, ui->xyPlot->yAxis);
     xyCurveRapid->setPen(QPen(QColor(200, 0, 0)));
     xyCurveInterp->setPen(QPen(QColor(0, 0, 200)));
+    xyCurvePosition = new QCPCurve(ui->xyPlot->xAxis, ui->xyPlot->yAxis);
+    xyCurvePosition->setPen(QPen(QColor(0, 200, 0)));
     ui->xyPlot->axisRect()->setupFullAxesBox();
     ui->xyPlot->xAxis->setRange(0, ui->maxX->value());
     ui->xyPlot->yAxis->setRange(0, ui->maxY->value());
@@ -142,13 +145,13 @@ void MainWindow::dealWithMessage(const QByteArray &message, const QMqttTopicName
         (rapid ? xyCurveRapid : xyCurveInterp)->addData(x, y);
     } else if (topic.name().endsWith(QString("position"))) {
         QList<QByteArray> list = message.split(',');
-        qDebug() << t << list;
         double x = list[0].toDouble();
         double y = list[1].toDouble();
         double z = list[2].toDouble();
         ui->tracePlot->graph(3)->addData(t, x);
         ui->tracePlot->graph(4)->addData(t, y);
         ui->tracePlot->graph(5)->addData(t, z);
+        xyCurvePosition->addData(x, y);
     } else {
     }
 }
