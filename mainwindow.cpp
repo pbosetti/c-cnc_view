@@ -25,7 +25,7 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(ui->maxX, SIGNAL(valueChanged(int)), this, SLOT(setSliderXMax(int)));
     QObject::connect(ui->maxY, SIGNAL(valueChanged(int)), this, SLOT(setSliderYMax(int)));
     QObject::connect(ui->maxZ, SIGNAL(valueChanged(int)), this, SLOT(setSliderZMax(int)));
-    statusBar()->showMessage(tr("Welcome! set broker data and press Connect, then topic and press Subscribe"), 10000);
+    statusBar()->showMessage(QString("Welcome! set broker data and press Connect, then topic and press Subscribe"), 10000);
 
     // Setup MQTT
     m_client = new QMqttClient(this);
@@ -57,6 +57,22 @@ MainWindow::MainWindow(QWidget *parent)
     ui->tracePlot->addGraph();
     ui->tracePlot->graph(2)->setPen(pen);
 
+    pen.setStyle(Qt::SolidLine);
+    // X
+    pen.setColor(QColor(255, 0, 0));
+    ui->tracePlot->addGraph();
+    ui->tracePlot->graph(3)->setPen(pen);
+
+    // Y
+    pen.setColor(QColor(0, 255, 0));
+    ui->tracePlot->addGraph();
+    ui->tracePlot->graph(4)->setPen(pen);
+
+    // Z
+    pen.setColor(QColor(0, 0, 255));
+    ui->tracePlot->addGraph();
+    ui->tracePlot->graph(5)->setPen(pen);
+
     QSharedPointer<QCPAxisTickerTime> timeTicker(new QCPAxisTickerTime);
     timeTicker->setTimeFormat("%h:%m:%s");
     ui->tracePlot->xAxis->setTicker(timeTicker);
@@ -66,8 +82,8 @@ MainWindow::MainWindow(QWidget *parent)
     ui->tracePlot->axisRect()->setRangeDrag(Qt::Horizontal);
     ui->tracePlot->setInteraction(QCP::iRangeZoom, true);
     ui->tracePlot->axisRect()->setRangeZoom(Qt::Horizontal);
-    ui->tracePlot->xAxis->setLabel(tr("Elapsed time"));
-    ui->tracePlot->yAxis->setLabel(tr("Axis Position (mm)"));
+    ui->tracePlot->xAxis->setLabel(QString("Elapsed time"));
+    ui->tracePlot->yAxis->setLabel(QString("Axis Position (mm)"));
 
     connect(ui->maxX, SIGNAL(valueChanged(int)), this, SLOT(setPlotYRange()));
     connect(ui->maxY, SIGNAL(valueChanged(int)), this, SLOT(setPlotYRange()));
@@ -86,8 +102,8 @@ MainWindow::MainWindow(QWidget *parent)
     ui->xyPlot->setInteraction(QCP::iRangeDrag, true);
     ui->xyPlot->axisRect()->setRangeDrag(Qt::Horizontal | Qt::Vertical);
     ui->xyPlot->setInteraction(QCP::iRangeZoom, true);
-    ui->xyPlot->xAxis->setLabel(tr("X (mm)"));
-    ui->xyPlot->yAxis->setLabel(tr("Y (mm)"));
+    ui->xyPlot->xAxis->setLabel(QString("X (mm)"));
+    ui->xyPlot->yAxis->setLabel(QString("Y (mm)"));
 
     // Setup timers
     // Running timer
@@ -108,14 +124,8 @@ MainWindow::~MainWindow()
 }
 
 void MainWindow::dealWithMessage(const QByteArray &message, const QMqttTopicName &topic) {
-    const QString pattern = "\\/" + ui->streamComboBox->currentText() +"$";
-    static QRegularExpression re(pattern);
-    if (re.pattern() != pattern) {
-        re.setPattern(pattern);
-    }
-
-    QRegularExpressionMatch match = re.match(topic.name());
-    if (match.hasMatch()) {
+    double t = timeCounter.elapsed() / 1000.0;
+    if (topic.name().endsWith(QString("setpoint"))) {
         QJsonDocument doc = QJsonDocument::fromJson(message);
         QJsonObject obj = doc.object();
         double x = obj["x"].toDouble();
@@ -125,14 +135,21 @@ void MainWindow::dealWithMessage(const QByteArray &message, const QMqttTopicName
         ui->sliderX->setValue(x);
         ui->sliderY->setValue(y);
         ui->sliderZ->setValue(z);
-        double t = timeCounter.elapsed() / 1000.0;
         ui->tracePlot->graph(0)->addData(t, x);
         ui->tracePlot->graph(1)->addData(t, y);
         ui->tracePlot->graph(2)->addData(t, z);
         ui->tracePlot->xAxis->setRange(t, 60, Qt::AlignRight);
         (rapid ? xyCurveRapid : xyCurveInterp)->addData(x, y);
+    } else if (topic.name().endsWith(QString("position"))) {
+        QList<QByteArray> list = message.split(',');
+        qDebug() << t << list;
+        double x = list[0].toDouble();
+        double y = list[1].toDouble();
+        double z = list[2].toDouble();
+        ui->tracePlot->graph(3)->addData(t, x);
+        ui->tracePlot->graph(4)->addData(t, y);
+        ui->tracePlot->graph(5)->addData(t, z);
     } else {
-        qDebug() << "Got message: " << message;
     }
 }
 
@@ -172,8 +189,8 @@ void MainWindow::on_connectButton_clicked()
     ui->brokerAddressField->setEnabled(disconnected);
     ui->brokerPortField->setEnabled(disconnected);
     ui->subscribeButton->setEnabled(disconnected);
-    ui->connectButton->setText(disconnected ? tr("Disconnect") : tr("Connect"));
-    statusBar()->showMessage(disconnected ? tr("Connected") : tr("Disconnected"), 2000);
+    ui->connectButton->setText(disconnected ? QString("Disconnect") : QString("Connect"));
+    statusBar()->showMessage(disconnected ? QString("Connected") : QString("Disconnected"), 2000);
 }
 
 
@@ -181,8 +198,8 @@ void MainWindow::brokerDisconnected()
 {
     ui->brokerAddressField->setEnabled(true);
     ui->brokerPortField->setEnabled(true);
-    ui->connectButton->setText(tr("Connect"));
-    statusBar()->showMessage(tr("Unexpected disconnection"), 20000);
+    ui->connectButton->setText(QString("Connect"));
+    statusBar()->showMessage(QString("Unexpected disconnection"), 20000);
 }
 
 void MainWindow::setClientPort(int p)

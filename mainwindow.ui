@@ -97,23 +97,6 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="2">
-       <widget class="QComboBox" name="streamComboBox">
-        <property name="currentIndex">
-         <number>0</number>
-        </property>
-        <item>
-         <property name="text">
-          <string>setpoint</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>position</string>
-         </property>
-        </item>
-       </widget>
-      </item>
      </layout>
     </item>
     <item>
